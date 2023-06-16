@@ -10,7 +10,7 @@ export const TREND_ARROW_ICON = {
   2: "↘",
   3: "→",
   4: "↗",
-  5: "↑",
+  5: "↓",
 } as const;
 
 export const TREND_ARROW_DIRECTION = {
@@ -18,5 +18,5 @@ export const TREND_ARROW_DIRECTION = {
   2: "southeast",
   3: "east",
   4: "northeast",
-  5: "nort",
+  5: "north",
 } as const;

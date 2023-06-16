@@ -5,77 +5,122 @@ import {
   findConnectionInResponseForPatientId,
   hash,
 } from "../utils";
-import { EnrichedMeasurement, RangeInputField } from "../types";
+import { GlucoseMeasurement, RangeInputField } from "../types";
 
 const perform = async (
   z: ZObject,
   bundle: Bundle<{
     patientId: string;
     range: RangeInputField;
-    minutesSince: null | string;
+    repeat: null | number;
+    repeatOnly: null | boolean;
   }>
-): Promise<EnrichedMeasurement[]> => {
+): Promise<GlucoseMeasurement[]> => {
+  if (!bundle.inputData.repeat && bundle.inputData.repeatOnly) {
+    throw new Error(
+      'The "Repeat only" option can only be enabled when "Repeat" option is also set.'
+    );
+  }
+
   const response = await z.request("/llu/connections");
   const connection = findConnectionInResponseForPatientId(
     response,
     bundle.inputData.patientId
   );
 
-  const enrichedMeasurement = {
-    ...enrichMeasurement(connection.glucoseMeasurement, connection.alarmRules),
-    __response: response,
+  const measurement: GlucoseMeasurement = {
+    ...enrichMeasurement(
+      connection.glucoseMeasurement,
+      connection.patientDevice.ll,
+      connection.patientDevice.hl
+    ),
+    _response: JSON.stringify(response),
+    isRepeat: bundle.inputData.repeat ? false : null,
+    repeatCount: bundle.inputData.repeat ? 0 : null,
   };
 
   if (bundle.meta.isLoadingSample) {
-    return [enrichedMeasurement];
+    z.console.log(
+      `Returning measurement because isLoadingSample: ${bundle.meta.isLoadingSample}`
+    );
+    return [measurement];
   }
 
-  if (!doesMeasurementMatchRange(enrichedMeasurement, bundle.inputData.range)) {
+  if (!doesMeasurementMatchRange(measurement, bundle.inputData.range)) {
+    z.console.log(
+      `Returning empty because ${
+        bundle.inputData.range
+      } does not match ${JSON.stringify(measurement)}`
+    );
     return [];
   }
 
-  const minutesSince = bundle.inputData.minutesSince
-    ? Number.parseInt(bundle.inputData.minutesSince, 10)
-    : null;
-
-  if (!minutesSince || Number.isNaN(minutesSince)) {
-    return [enrichedMeasurement];
+  if (!bundle.inputData.repeat) {
+    z.console.log(
+      `Returning measurement because repeat: ${bundle.inputData.repeat}`
+    );
+    return [measurement];
   }
+
+  const xSecret = measurement.id;
 
   const storeResponse = await z.request({
     url: "https://store.zapier.com/api/records",
     method: "GET",
+    headers: {
+      "X-Secret": xSecret,
+    },
   });
 
   const CurrentTimestampDate = new Date();
+  let repeatCount = 0;
 
   if (storeResponse.data.TriggerTimestamp) {
     const TriggerTimestampDate = new Date(storeResponse.data.TriggerTimestamp);
+    const differenceInMinutes =
+      (CurrentTimestampDate.getTime() - TriggerTimestampDate.getTime()) /
+      (60 * 1000);
 
-    if (
-      CurrentTimestampDate.getTime() - TriggerTimestampDate.getTime() <
-      minutesSince * 60 * 1000
-    ) {
+    if (differenceInMinutes < bundle.inputData.repeat) {
+      z.console.log(
+        `Returning empty because differenceInMinutes: ${CurrentTimestampDate.toISOString()} -  ${TriggerTimestampDate.toISOString()} = ${differenceInMinutes} < ${
+          bundle.inputData.repeat
+        }`
+      );
       return [];
     }
+
+    measurement.id = hash(
+      `${measurement.FactoryTimestamp}:${CurrentTimestampDate}`
+    );
+    measurement.isRepeat = true;
+    measurement.repeatCount = repeatCount =
+      (storeResponse.data.repeatCount ?? 0) + 1;
   }
 
   await z.request({
     url: "https://store.zapier.com/api/records",
     method: "POST",
+    headers: {
+      "X-Secret": xSecret,
+    },
     json: {
       TriggerTimestamp: CurrentTimestampDate.toISOString(),
+      repeatCount,
     },
   });
 
-  return [
-    {
-      ...enrichedMeasurement,
-      id: hash(
-        `${enrichedMeasurement.FactoryTimestamp}:${CurrentTimestampDate}`
-      ),
-    },
-  ];
+  if (bundle.inputData.repeatOnly && !measurement.isRepeat) {
+    z.console.log(
+      `Returning empty because repeatOnly: ${
+        bundle.inputData.repeatOnly
+      } and ${!measurement.isRepeat}`
+    );
+    return [];
+  }
+
+  z.console.log(`Returning measurement`);
+  return [measurement];
 };
 
 export default {
@@ -135,6 +180,14 @@ export default {
         helpText:
           "Trigger again every selected number of minutes since the last measurement.",
         choices: ["15", "30", "45", "60", "90", "120"],
+      },
+      {
+        key: "repeatOnly",
+        label: "Repeat only",
+        type: "boolean",
+        required: false,
+        helpText:
+          "In combination with the above, do not trigger on new measurements themselves.",
       },
     ],
     perform,

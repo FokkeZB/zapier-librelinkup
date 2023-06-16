@@ -13,11 +13,13 @@ const perform = async (z: ZObject, _bundle: Bundle) => {
     targetHighMm: getValueInMmolPerL(connection.targetHight),
     glucoseMeasurement: enrichMeasurement(
       connection.glucoseMeasurement,
-      connection.alarmRules
+      connection.patientDevice.ll,
+      connection.patientDevice.hl
     ),
     glucoseItem: enrichMeasurement(
       connection.glucoseItem,
-      connection.alarmRules
+      connection.patientDevice.ll,
+      connection.patientDevice.hl
     ),
   }));
 };

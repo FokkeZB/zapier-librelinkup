@@ -21,10 +21,11 @@ export const getValueInMmolPerL = (ValueInMgPerDl: number): number =>
 
 export const enrichMeasurement = (
   { Timestamp, ...measurement }: ResponseMeasurement,
-  alarmRules: AlarmRules
+  lowAlarm: number,
+  highAlarm: number
 ): EnrichedMeasurement => {
-  const isHigh = measurement.ValueInMgPerDl > alarmRules.h.th;
-  const isLow = measurement.ValueInMgPerDl < alarmRules.l.th;
+  const isHigh = measurement.ValueInMgPerDl > highAlarm;
+  const isLow = measurement.ValueInMgPerDl < lowAlarm;
 
   return {
     ...measurement,
@@ -44,7 +45,7 @@ export const enrichMeasurement = (
 };
 
 export const doesMeasurementMatchRange = (
-  measurement: EnrichedMeasurement,
+  measurement: Pick<EnrichedMeasurement, "isHigh" | "isLow" | "isInRange">,
   range: RangeInputField
 ) =>
   !range ||

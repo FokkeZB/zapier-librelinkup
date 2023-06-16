@@ -36,6 +36,12 @@ export type EnrichedMeasurement = Omit<ResponseMeasurement, "Timestamp"> & {
   isInRange: boolean;
 };
 
+export type GlucoseMeasurement = EnrichedMeasurement & {
+  isRepeat: null | boolean;
+  repeatCount: null | number;
+  _response: string;
+};
+
 export type AlarmRules = {
   h: {
     th: number;
@@ -60,6 +66,10 @@ export type ConnectionsResponse = {
       glucoseMeasurement: ResponseMeasurement;
       glucoseItem: ResponseMeasurement;
       alarmRules: AlarmRules;
+      patientDevice: {
+        ll: number;
+        hl: number;
+      };
     }
   ];
 };
