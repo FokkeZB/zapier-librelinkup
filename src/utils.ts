@@ -17,7 +17,7 @@ export const hash = (value: string) =>
   createHash("md5").update(value).digest("hex");
 
 export const getValueInMmolPerL = (ValueInMgPerDl: number): number =>
-  ValueInMgPerDl / 18;
+  ValueInMgPerDl / 18.01559;
 
 export const enrichMeasurement = (
   { Timestamp, ...measurement }: ResponseMeasurement,
