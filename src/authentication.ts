@@ -111,7 +111,7 @@ const beforeRequest = (
     connection: "Keep-Alive",
     "content-type": "application/json",
     product: "llu.android",
-    version: "4.2.1",
+    version: "4.7",
   };
 
   if (absoluteURL.pathname !== "/llu/auth/login" && bundle.authData.token) {
