@@ -110,7 +110,7 @@ const beforeRequest = (
     "cache-control": "no-cache",
     connection: "Keep-Alive",
     "content-type": "application/json",
-    product: "llu.android",
+    product: "llu.ios",
     version: "4.7",
   };
 
