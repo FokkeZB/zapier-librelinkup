@@ -1,10 +1,7 @@
 import { Bundle, HttpRequestOptions, ZObject } from "zapier-platform-core";
 
-const getRegionFromBundleOrDefault = (bundle: Bundle): string =>
-  bundle.authData.region || "us";
-
-const getBaseUrlForBundle = (bundle: Bundle): string =>
-  `https://api-${getRegionFromBundleOrDefault(bundle)}.libreview.io`;
+const getBaseUrlForBundle = (region?: string): string =>
+  `https://api${region ? `-${region}` : ""}.libreview.io`;
 
 const getSessionKey = async (
   z: ZObject,
@@ -15,7 +12,7 @@ const getSessionKey = async (
 }> => {
   const response = await z.request({
     method: "POST",
-    url: `${getBaseUrlForBundle(bundle)}/llu/auth/login`,
+    url: `${getBaseUrlForBundle(bundle.authData.region)}/llu/auth/login`,
     body: {
       email: bundle.authData.email,
       password: bundle.authData.password,
@@ -51,7 +48,7 @@ const getSessionKey = async (
 
   return {
     token: data.data.authTicket.token,
-    region: getRegionFromBundleOrDefault(bundle),
+    region: bundle.authData.region,
   };
 };
 
@@ -96,7 +93,10 @@ const beforeRequest = (
   _z: ZObject,
   bundle: Bundle
 ) => {
-  const absoluteURL = new URL(request.url ?? "/", getBaseUrlForBundle(bundle));
+  const absoluteURL = new URL(
+    request.url ?? "/",
+    getBaseUrlForBundle(bundle.authData.region)
+  );
 
   if (absoluteURL.hostname === "store.zapier.com") {
     return request;
