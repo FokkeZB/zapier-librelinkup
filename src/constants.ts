@@ -6,11 +6,11 @@ export const MEASUREMENT_COLOR = {
 } as const;
 
 export const TREND_ARROW_ICON = {
-  1: "↑",
+  1: "↓",
   2: "↘",
   3: "→",
   4: "↗",
-  5: "↓",
+  5: "↑",
 } as const;
 
 export const TREND_ARROW_DIRECTION = {
