@@ -1,4 +1,5 @@
 import { Bundle, HttpRequestOptions, ZObject } from "zapier-platform-core";
+import { createHash } from "crypto";
 
 const getBaseUrlForBundle = (region?: string): string =>
   `https://api${region ? `-${region}` : ""}.libreview.io`;
@@ -9,6 +10,7 @@ const getSessionKey = async (
 ): Promise<{
   token: string;
   region: string;
+  accountId: string;
 }> => {
   const response = await z.request({
     method: "POST",
@@ -30,6 +32,9 @@ const getSessionKey = async (
     | {
         status: 4;
         data: {
+          user: {
+            id: string;
+          };
           authTicket: {
             token: string;
           };
@@ -49,6 +54,7 @@ const getSessionKey = async (
   return {
     token: data.data.authTicket.token,
     region: bundle.authData.region,
+    accountId: createHash("sha256").update(data.data.user.id).digest("hex"),
   };
 };
 
@@ -110,8 +116,9 @@ const beforeRequest = (
     "cache-control": "no-cache",
     connection: "Keep-Alive",
     "content-type": "application/json",
+    "account-id": bundle.authData.accountId,
     product: "llu.ios",
-    version: "4.7",
+    version: "4.12.0",
   };
 
   if (absoluteURL.pathname !== "/llu/auth/login" && bundle.authData.token) {
