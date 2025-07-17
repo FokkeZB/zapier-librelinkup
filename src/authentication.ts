@@ -4,6 +4,16 @@ import { createHash } from "crypto";
 const getBaseUrlForBundle = (region?: string): string =>
   `https://api${region ? `-${region}` : ""}.libreview.io`;
 
+type Step = {
+  type: string;
+  componentName: "AcceptDocument";
+  props: {
+    reaccept: boolean;
+    titleKey: string;
+    type: string;
+  };
+};
+
 const getSessionKey = async (
   z: ZObject,
   bundle: Bundle
@@ -12,14 +22,23 @@ const getSessionKey = async (
   region: string;
   accountId: string;
 }> => {
-  const response = await z.request({
-    method: "POST",
-    url: `${getBaseUrlForBundle(bundle.authData.region)}/llu/auth/login`,
-    body: {
-      email: bundle.authData.email,
-      password: bundle.authData.password,
-    },
-  });
+  const request = bundle.inputData.acceptTermsOfType
+    ? {
+        method: "POST" as const,
+        url: `${getBaseUrlForBundle(bundle.authData.region)}/auth/continue/${
+          bundle.inputData.acceptTermsOfType
+        }`,
+      }
+    : {
+        method: "POST" as const,
+        url: `${getBaseUrlForBundle(bundle.authData.region)}/llu/auth/login`,
+        body: {
+          email: bundle.authData.email,
+          password: bundle.authData.password,
+        },
+      };
+
+  const response = await z.request(request);
 
   const data = response.data as
     | {
@@ -32,11 +51,29 @@ const getSessionKey = async (
     | {
         status: 4;
         data: {
+          step: Step;
+          user: {
+            accountType: string;
+            country: string;
+            uiLanguage: string;
+          };
+          authTicket: {
+            token: string;
+            expires: number;
+            duration: number;
+          };
+        };
+      }
+    | {
+        status: 0;
+        data: {
           user: {
             id: string;
           };
           authTicket: {
             token: string;
+            expires: number;
+            duration: number;
           };
         };
       };
@@ -47,6 +84,16 @@ const getSessionKey = async (
       authData: {
         ...bundle.authData,
         region: data.data.region,
+      },
+    });
+  }
+
+  if ("step" in data.data) {
+    return getSessionKey(z, {
+      ...bundle,
+      inputData: {
+        ...bundle.inputData,
+        acceptTermsOfType: data.data.step.type,
       },
     });
   }
